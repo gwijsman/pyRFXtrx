@@ -5,6 +5,11 @@
 A Python library to communicate with the RFXtrx family of devices
 from http://www.rfxcom.com/. Works with http://www.home-assistant.io
 
+==========
+ pyRFXtrx  not Gert
+==========
+I tried to add the GasFirePlace Mertik protocol to this module for use in Home Assistant (july 2020)
+
 
 Using
 =====
