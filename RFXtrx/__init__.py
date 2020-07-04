@@ -23,6 +23,8 @@ This module provides the base implementation for pyRFXtrx
 # pylint: disable=R0903, invalid-name
 from __future__ import print_function
 
+import logging
+
 import glob
 import socket
 import threading
@@ -33,6 +35,7 @@ import serial
 
 from . import lowlevel
 
+_LOGGER = logging.getLogger(__name__)
 
 ###############################################################################
 # RFXtrxDevice class
@@ -42,6 +45,8 @@ class RFXtrxDevice:
     """ Superclass for all devices """
 
     def __init__(self, pkt):
+        print("RFXtrx test Start class RFXtrxDevice")
+        _LOGGER.debug("Gert: start setup in pyRFXtrx...")
         self.packettype = pkt.packettype
         self.subtype = pkt.subtype
         self.type_string = pkt.type_string
