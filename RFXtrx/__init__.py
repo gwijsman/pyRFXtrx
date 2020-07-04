@@ -45,14 +45,15 @@ class RFXtrxDevice:
     """ Superclass for all devices """
 
     def __init__(self, pkt):
-        print("RFXtrx test Start class RFXtrxDevice")
-        _LOGGER.debug("Gert: start setup in pyRFXtrx...")
+        _LOGGER.debug("Start setup Device in pyRFXtrx...")
         self.packettype = pkt.packettype
         self.subtype = pkt.subtype
         self.type_string = pkt.type_string
         self.id_string = pkt.id_string
         self.known_to_be_dimmable = False
         self.known_to_be_rollershutter = False
+        _LOGGER.debug("type: %s, subtype: %s", self.packettype, self.subtype)
+        _LOGGER.debug("info: %s", self.__str__) 
 
     def __eq__(self, other):
         if self.packettype != other.packettype:
