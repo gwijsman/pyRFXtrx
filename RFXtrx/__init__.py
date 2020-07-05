@@ -23,8 +23,6 @@ This module provides the base implementation for pyRFXtrx
 # pylint: disable=R0903, invalid-name
 from __future__ import print_function
 
-import logging
-
 import glob
 import socket
 import threading
@@ -35,6 +33,7 @@ import serial
 
 from . import lowlevel
 
+import logging
 _LOGGER = logging.getLogger(__name__)
 
 ###############################################################################
@@ -45,15 +44,15 @@ class RFXtrxDevice:
     """ Superclass for all devices """
 
     def __init__(self, pkt):
-        _LOGGER.debug("Start setup Device in pyRFXtrx...")
+        _LOGGER.debug("Gert: start init RFXtrxDevice setup")
         self.packettype = pkt.packettype
         self.subtype = pkt.subtype
         self.type_string = pkt.type_string
         self.id_string = pkt.id_string
         self.known_to_be_dimmable = False
         self.known_to_be_rollershutter = False
-        _LOGGER.debug("type: %s, subtype: %s", self.packettype, self.subtype)
-        _LOGGER.debug("info: %s", self.__str__) 
+        _LOGGER.debug("Gert: end init RFXtrxDevice setup")
+        _LOGGER.debug("Gert: RFXtrxDevice: %s", self.__str__())
 
     def __eq__(self, other):
         if self.packettype != other.packettype:
@@ -120,7 +119,63 @@ class RollerTrolDevice(RFXtrxDevice):
         self.cmndseqnbr = (self.cmndseqnbr + 1) % 5
         transport.send(pkt.data)
 
+class ThermostatDevice(RFXtrxDevice):
+    """ Concrete class for a thermostat """
+    def __init__(self, pkt):
+        super(ThermostatDevice, self).__init__(pkt)
+        if isinstance(pkt, lowlevel.Thermostat3):
+            self.id_combined = pkt.id_combined
+            self.cmndseqnbr = 0
 
+    def send_run_up(self, transport):
+        """ Send a 'Run up' command using the given transport """
+        pkt = lowlevel.Thermostat3()
+        pkt.set_transmit(
+            self.subtype,
+            self.cmndseqnbr,
+            self.id_combined,
+            0x04
+        )
+        self.cmndseqnbr = (self.cmndseqnbr + 1) % 5
+        transport.send(pkt.data)
+
+    def send_run_down(self, transport):
+        """ Send a 'Run down' command using the given transport """
+        pkt = lowlevel.Thermostat3()
+        pkt.set_transmit(
+            self.subtype,
+            self.cmndseqnbr,
+            self.id_combined,
+            0x05
+        )
+        self.cmndseqnbr = (self.cmndseqnbr + 1) % 5
+        transport.send(pkt.data)
+
+    def send_on(self, transport):
+        """ Send a 'Up' command using the given transport """
+        pkt = lowlevel.Thermostat3()
+        pkt.set_transmit(
+            self.subtype,
+            self.cmndseqnbr,
+            self.id_combined,
+            0x02
+        )
+        self.cmndseqnbr = (self.cmndseqnbr + 1) % 5
+        transport.send(pkt.data)
+
+    def send_off(self, transport):
+        """ Send a 'Down' command using the given transport """
+        pkt = lowlevel.Thermostat3()
+        pkt.set_transmit(
+            self.subtype,
+            self.cmndseqnbr,
+            self.id_combined,
+            0x03
+        )
+        self.cmndseqnbr = (self.cmndseqnbr + 1) % 5
+        transport.send(pkt.data)
+
+        
 class RfyDevice(RFXtrxDevice):
     """ Concrete class for a roller device """
     def __init__(self, pkt):
@@ -381,6 +436,10 @@ def get_device(packettype, subtype, id_string):
         pkt = lowlevel.Rfy()
         pkt.parse_id(subtype, id_string)
         return RfyDevice(pkt)
+    if packettype == 0x42:  # Thermostat3
+        pkt = lowlevel.Thermostat3()
+        pkt.parse_id(subtype, id_string)
+        return ThermostatDevice(pkt)
 
     raise ValueError("Unsupported packettype")
 
@@ -494,6 +553,8 @@ class ControlEvent(RFXtrxEvent):
             device = RollerTrolDevice(pkt)
         elif isinstance(pkt, lowlevel.Rfy):
             device = RfyDevice(pkt)
+        elif isinstance(pkt, lowlevel.Thermostat3):
+            device = ThermostatDevice(pkt)
         else:
             device = RFXtrxDevice(pkt)
         super(ControlEvent, self).__init__(device)

@@ -88,6 +88,8 @@ def parse(data):
         pkt = Energy5()
     elif data[1] == 0x71:
         pkt = RfxMeter()
+    elif data[1] == 0x42:
+        pkt = Thermostat3()
     else:
         return None
 
@@ -2552,6 +2554,125 @@ class RollerTrol(Packet):
         """Translate loaded numeric values into convenience strings"""
         self.id_string = "{0:06x}:{1}".format(self.id_combined,
                                               self.unitcode)
+
+        if self.subtype in self.TYPES:
+            self.type_string = self.TYPES[self.subtype]
+        else:
+            # Degrade nicely for yet unknown subtypes
+            self.type_string = self._UNKNOWN_TYPE.format(self.packettype,
+                                                         self.subtype)
+
+        if self.cmnd is not None:
+            if self.cmnd in self.COMMANDS:
+                self.cmnd_string = self.COMMANDS[self.cmnd]
+            else:
+                self.cmnd_string = self._UNKNOWN_CMND.format(self.cmnd)
+
+
+###############################################################################
+# Thermostat3 class
+###############################################################################
+
+
+class Thermostat3(Packet):
+    """
+    Data class for the Thermostat3 packet type
+    """
+    TYPES = {0x00: 'Thermostat3'}
+    """
+    Mapping of numeric subtype values to strings, used in type_string
+    """
+
+    COMMANDS = {0x00: 'Off',
+                0x01: 'On',
+                0x02: 'Up',
+                0x03: 'Down',
+                0x04: 'Run up',
+                0x05: 'Run down',
+                0x06: 'Stop'}
+    """
+    Mapping of command numeric values to strings, used for cmnd_string
+    """
+
+    def __repr__(self):
+        return self.__str__()
+
+    def __str__(self):
+        return ("Thermostat3 [subtype={0}, seqnbr={1}, id={2}, cmnd={3}, " +
+                "rssi={4}]") \
+            .format(
+                self.subtype,
+                self.seqnbr,
+                self.id_string,
+                self.cmnd_string,
+                self.rssi
+            )
+
+    def __init__(self):
+        """Constructor"""
+        super(Thermostat3, self).__init__()
+        self.id1 = None
+        self.id2 = None
+        self.id3 = None
+        self.id_combined = None
+        self.cmnd = None
+        self.cmnd_string = None
+
+    def parse_id(self, subtype, id_string):
+        """( a string id into individual components"""
+        try:
+            self.packettype = 0x19
+            self.subtype = subtype
+            self.id_combined = int(id_string[:6], 16)
+            print(self.id_combined) 
+            self.id1 = self.id_combined >> 16
+            self.id2 = self.id_combined >> 8 & 0xff
+            self.id3 = self.id_combined & 0xff
+            self._set_strings()
+            print(self.id_string)
+        except ValueError:
+            raise ValueError("Invalid id_string")
+        if self.id_string != id_string:
+            raise ValueError("Invalid id_string")
+
+    def load_receive(self, data):
+        """Load data from a bytearray"""
+        self.data = data
+        self.packetlength = data[0]
+        self.packettype = data[1]
+        self.subtype = data[2]
+        self.seqnbr = data[3]
+        self.id1 = data[4]
+        self.id2 = data[5]
+        self.id3 = data[6]
+        self.id_combined = (self.id1 << 16) + (self.id2 << 8) + self.id3
+        self.cmnd = data[7]
+        self.rssi_byte = data[8]
+        self.rssi = self.rssi_byte >> 4
+        self._set_strings()
+
+    def set_transmit(self, subtype, seqnbr, id_combined, cmnd):
+        """Load data from individual data fields"""
+        self.packetlength = 0x08
+        self.packettype = 0x42
+        self.subtype = subtype
+        self.seqnbr = seqnbr
+        self.id_combined = id_combined
+        self.id1 = id_combined >> 16
+        self.id2 = id_combined >> 8 & 0xff
+        self.id3 = id_combined & 0xff
+        self.cmnd = cmnd
+        self.rssi_byte = 0
+        self.rssi = self.rssi_byte >> 4
+        self.data = bytearray([self.packetlength, self.packettype,
+                               self.subtype, self.seqnbr,
+                               self.id1, self.id2, self.id3, 
+                               self.cmnd, self.rssi])
+        self._set_strings()
+
+    def _set_strings(self):
+        """Translate loaded numeric values into convenience strings"""
+        self.id_string = "{0:06x}".format(self.id_combined)
 
         if self.subtype in self.TYPES:
             self.type_string = self.TYPES[self.subtype]
